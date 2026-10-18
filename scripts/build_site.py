@@ -107,6 +107,22 @@ CAT_HEAD_CAMPAIGN = {"Necklaces": "mixed", "Rings": "ring"}
 AI_NOTE = ("Model photographs on this site are AI-generated from photos of our real pieces. "
            "Product pages show the actual jewellery.")
 
+# Brand film from the client, shown at the top of the home page. `small` is a
+# lighter 960x540 copy that phones download instead of the 1280x720 file.
+FILM = dict(src="/media/xiai-film.mp4", small="/media/xiai-film-540.mp4", poster="/images/film-poster.jpg",
+            caption="XIAI JEWELRY on film: our showroom, the workshop and the runway.")
+FILM = FILM if (ROOT / FILM["src"].lstrip("/")).exists() else None
+
+NUM = "zero one two three four five six seven eight nine ten eleven twelve".split()
+ICON = {
+    "prev": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>',
+    "next": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>',
+    "pause": '<svg class="i-main" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="5" width="3.6" height="14" rx="1"/><rect x="13.9" y="5" width="3.6" height="14" rx="1"/></svg>',
+    "play": '<svg class="i-alt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>',
+    "muted": '<svg class="i-main" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.5h3.8L12 5.5v13l-4.7-4H3.5z" fill="currentColor" stroke="none"/><path d="m15.5 9.5 5 5m0-5-5 5"/></svg>',
+    "sound": '<svg class="i-alt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.5h3.8L12 5.5v13l-4.7-4H3.5z" fill="currentColor" stroke="none"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.2 6.5a8 8 0 0 1 0 11"/></svg>',
+}
+
 
 def metal(p):
     m = dict(p["specs"]).get("Metal", "")
@@ -120,14 +136,16 @@ def plural(n, word):
 
 
 # ------------------------------------------------------------ chrome ------
-def head(title, desc, path, image, ld=()):
+def head(title, desc, path, image, ld=(), preload=""):
     url = SITE + path
     ld_html = "\n".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in ld)
+    pre = f'\n<link rel="preload" href="{preload}" as="image" fetchpriority="high">' if preload else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F8F5F0">
 <title>{e(title)}</title>
 <meta name="description" content="{e(desc)}">
 <link rel="canonical" href="{url}">
@@ -140,7 +158,7 @@ def head(title, desc, path, image, ld=()):
 <meta property="og:image" content="{SITE}{image}">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/fonts/cormorant-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/jost-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/jost-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>{pre}
 <link rel="stylesheet" href="/assets/site.css?v={CSS_V}">
 {ld_html}
 </head>
@@ -280,6 +298,101 @@ def write(rel, text):
 
 
 # ------------------------------------------------------------- pages ------
+def film_section():
+    """The brand film, first thing on the home page. It plays muted on a loop;
+    site.js swaps the native controls for pause and sound buttons, and does not
+    start it for visitors who ask for reduced motion."""
+    if not FILM:
+        return ""
+    big = f'{FILM["src"]}?v={ver(FILM["src"].lstrip("/"))}'
+    sources = f'<source src="{big}" type="video/mp4">'
+    if (ROOT / FILM["small"].lstrip("/")).exists():
+        small = f'{FILM["small"]}?v={ver(FILM["small"].lstrip("/"))}'
+        # Browsers that ignore `media` take the first (full-size) file.
+        sources = (f'<source src="{big}" type="video/mp4" media="(min-width: 701px)">\n'
+                   f'        <source src="{small}" type="video/mp4">')
+    return f"""<section class="film" aria-label="Brand film">
+  <div class="wrap">
+    <div class="film-box">
+      <video id="film" muted loop playsinline controls preload="metadata" poster="{FILM['poster']}" aria-label="XIAI JEWELRY brand film">
+        {sources}
+      </video>
+      <div class="film-ctrl">
+        <button class="film-play" type="button" aria-label="Pause the film">{ICON['pause']}{ICON['play']}</button>
+        <button class="film-sound" type="button" aria-label="Turn the sound on">{ICON['muted']}{ICON['sound']}</button>
+      </div>
+    </div>
+    <p class="wearing">{e(FILM['caption'])}</p>
+  </div>
+</section>"""
+
+
+def hero_carousel():
+    """Home carousel of the campaign images, each linked to the real piece.
+    Without campaign images it falls back to text beside a product photo."""
+    slogan = """<h1>Because it&rsquo;s XiAi, it&rsquo;s love at first&nbsp;sight.</h1>
+          <p class="sub">Golden, white and Tahitian pearls, chosen at the source in Shanxiahu and set in gold and silver.</p>
+          <div class="btns"><a class="btn fill" href="/products">Discover the collection</a></div>"""
+    if "hero" not in CAMPAIGN:
+        hp = BY_SKU["33168"]
+        w, h = size(hp["photos"][0])
+        return f"""<section class="hero" aria-label="Introduction">
+  <div class="wrap"><div class="hero-split">
+    <div class="hero-copy-alt">
+          {slogan}
+    </div>
+    <a class="hero-product" href="/products/{hp['sku']}"><img src="{hp['photos'][0]}" alt="{e(hp['name'])}, item {hp['sku']}" width="{w}" height="{h}" fetchpriority="high"><span>{e(hp['name'])}, no. {hp['sku']}</span></a>
+  </div></div>
+</section>"""
+
+    def img(key, alt):
+        w, h = size(CAMPAIGN[key]["src"])
+        return f'<img src="{CAMPAIGN[key]["src"]}" alt="{alt}" width="{w}" height="{h}">'
+
+    rings = len(CAT_BY_NAME["Rings"]["items"])
+    slides = [("s-wide", "hero", f"""{img('hero', 'Model wearing XIAI cream-gold pearl drop earrings')}
+        <div class="slide-copy">
+          {slogan}
+        </div>""")]
+    if "mixed" in CAMPAIGN:
+        slides.append(("s-split", "mixed", f"""{img('mixed', 'Model in a white shirt wearing a necklace of mixed saltwater pearls')}
+        <div class="slide-copy">
+          <h2>Why choose one colour?</h2>
+          <p>Tahitian, golden, white South Sea and Akoya pearls in varied sizes on one fine 18K gold chain, in 43&nbsp;cm or 46&nbsp;cm.</p>
+          <div class="btns"><a class="btn fill" href="/products/14121">See the necklace</a></div>
+        </div>"""))
+    if "ring" in CAMPAIGN:
+        slides.append(("s-split", "ring", f"""{img('ring', 'Hand on a camel coat wearing a golden pearl ring')}
+        <div class="slide-copy">
+          <h2>A golden pearl, close up</h2>
+          <p>A 12–13&nbsp;mm golden pearl inside a swirl of small stones. See all {NUM[rings] if rings < len(NUM) else rings} rings, from a three-pearl Akoya band to Tahitian statement pieces.</p>
+          <div class="btns"><a class="btn fill" href="/products/63034">See this ring</a><a class="btn" href="/products/rings">Shop rings</a></div>
+        </div>"""))
+    n = len(slides)
+    items = "\n".join(
+        f"""    <div class="slide {kind}" role="group" aria-roledescription="slide" aria-label="{i + 1} of {n}">
+      <div class="slide-frame">
+        {inner}
+      </div>
+      {wearing(key)}
+    </div>""" for i, (kind, key, inner) in enumerate(slides))
+    arrows = dots = ""
+    if n > 1:  # arrows come first so keyboard users reach them before the slides
+        arrows = f"""
+    <button class="car-btn prev" type="button" aria-controls="hero-track" aria-label="Previous slide">{ICON['prev']}</button>
+    <button class="car-btn next" type="button" aria-controls="hero-track" aria-label="Next slide">{ICON['next']}</button>"""
+        dots = "\n    <div class=\"car-dots\">" + "".join(
+            f'<button type="button" aria-controls="hero-track" aria-label="Slide {i + 1}: {e(BY_SKU[CAMPAIGN[key]["sku"]]["name"])}"'
+            f'{" aria-current=\"true\"" if i == 0 else ""}></button>' for i, (kind, key, inner) in enumerate(slides)) + "</div>"
+    return f"""<section class="hero" aria-roledescription="carousel" aria-label="Highlights">
+  <div class="wrap"><div class="car" data-carousel>{arrows}
+    <div class="car-track" id="hero-track">
+{items}
+    </div>{dots}
+  </div></div>
+</section>"""
+
+
 def home():
     edit = [BY_SKU[s] for s in "33187 34115 14174 52018 64048 73081 32089 13210".split()]
     tiles = "\n".join(
@@ -288,80 +401,6 @@ def home():
     pearls = "\n".join(
         f'<a href="/pearl-guide#{k}"><img src="{v["img"]}" alt="" width="400" height="400" loading="lazy"><b>{v["name"]}</b><span>{plural(len(v["skus"]), "piece")}</span></a>'
         for k, v in PEARLS.items())
-
-    hero = ""
-    if "hero" in CAMPAIGN:
-        w, h = size(CAMPAIGN["hero"]["src"])
-        hero = f"""<section class="hero" aria-label="Introduction">
-  <div class="wrap">
-    <div class="hero-media"><img src="{CAMPAIGN['hero']['src']}" alt="Model wearing XIAI cream-gold pearl drop earrings" width="{w}" height="{h}" fetchpriority="high"></div>
-    <div class="hero-copy">
-      <h1>Because it&rsquo;s XiAi, it&rsquo;s love at first&nbsp;sight.</h1>
-      <p class="sub">Golden, white and Tahitian pearls, chosen at the source in Shanxiahu and set in gold and silver.</p>
-      <div class="btns"><a class="btn fill" href="/products">Discover the collection</a></div>
-    </div>
-    {wearing('hero')}
-  </div>
-</section>"""
-
-    if not hero:  # no campaign image yet: text beside a real product photo
-        hp = BY_SKU["33168"]
-        w, h = size(hp["photos"][0])
-        hero = f"""<section class="hero" aria-label="Introduction">
-  <div class="wrap"><div class="hero-split">
-    <div class="hero-copy-alt">
-      <h1>Because it&rsquo;s XiAi, it&rsquo;s love at first&nbsp;sight.</h1>
-      <p class="sub">Golden, white and Tahitian pearls, chosen at the source in Shanxiahu and set in gold and silver.</p>
-      <div class="btns"><a class="btn fill" href="/products">Discover the collection</a></div>
-    </div>
-    <a class="hero-product" href="/products/{hp['sku']}"><img src="{hp['photos'][0]}" alt="{e(hp['name'])}, item {hp['sku']}" width="{w}" height="{h}" fetchpriority="high"><span>{e(hp['name'])}, no. {hp['sku']}</span></a>
-  </div></div>
-</section>"""
-
-    duo = ""
-    if "tahitian" in CAMPAIGN and "long" in CAMPAIGN:
-        duo = f"""<section class="sec" aria-label="Campaign">
-  <div class="wrap duo">
-    <article class="story">
-      <img src="{CAMPAIGN['tahitian']['src']}" alt="Model in a black turtleneck wearing grey Tahitian pearl drop earrings" width="1080" height="1350" loading="lazy">
-      <h3>Tahitian, in soft grey</h3>
-      <p>Platinum-grey Tahitian pearls under a small interlaced top. Quiet enough for every day, with a turtleneck or a white shirt.</p>
-      <a class="ul" href="/pearl-guide#tahitian">Explore Tahitian pearls</a>
-      {wearing('tahitian')}
-    </article>
-    <article class="story">
-      <img src="{CAMPAIGN['long']['src']}" alt="Model in a cream knit wearing a long golden pearl necklace" width="1080" height="1350" loading="lazy">
-      <h3>Worn long</h3>
-      <p>An 85 cm line of golden pearls and small gold beads that falls over knitwear, tailoring and dresses.</p>
-      <a class="ul" href="/products/43018">See the necklace</a>
-      {wearing('long')}
-    </article>
-  </div>
-</section>"""
-
-    mixed = ""
-    if "mixed" in CAMPAIGN:
-        mixed = f"""<section class="split" aria-label="Mixed pearls">
-  <div class="media"><img src="{CAMPAIGN['mixed']['src']}" alt="Model in a white shirt wearing a necklace of mixed saltwater pearls" width="{size(CAMPAIGN['mixed']['src'])[0]}" height="{size(CAMPAIGN['mixed']['src'])[1]}" loading="lazy"></div>
-  <div class="copy">
-    <h2>Why choose one colour?</h2>
-    <p>Tahitian, golden, white South Sea and Akoya pearls in varied sizes on one fine 18K gold chain, in 43 cm or 46 cm.</p>
-    <div class="btns"><a class="btn" href="/products/14121">See the necklace</a></div>
-    {wearing('mixed')}
-  </div>
-</section>"""
-
-    ring = ""
-    if "ring" in CAMPAIGN:
-        ring = f"""<section class="split rev lilac" aria-label="Rings">
-  <div class="media"><img src="{CAMPAIGN['ring']['src']}" alt="Hand on a camel coat wearing a golden pearl ring" width="{size(CAMPAIGN['ring']['src'])[0]}" height="{size(CAMPAIGN['ring']['src'])[1]}" loading="lazy"></div>
-  <div class="copy">
-    <h2>A golden pearl, close up</h2>
-    <p>A 12–13 mm golden pearl inside a swirl of small stones. See all seven rings, from a three-pearl Akoya band to Tahitian statement pieces.</p>
-    <div class="btns"><a class="btn" href="/products/rings">Shop rings</a><a class="btn" href="/products/63034">See this ring</a></div>
-    {wearing('ring')}
-  </div>
-</section>"""
 
     ld = [{
         "@context": "https://schema.org", "@type": "JewelryStore", "@id": SITE + "/#store",
@@ -377,7 +416,8 @@ def home():
         "memberOf": {"@type": "Organization", "name": "Zhejiang Pearl Industry Association"},
     }]
     og = CAMPAIGN["hero"]["src"] if "hero" in CAMPAIGN else edit[0]["photos"][0]
-    body = f"""{hero}
+    body = f"""{film_section()}
+{hero_carousel()}
 <section class="sec" aria-labelledby="edit-h">
   <div class="wrap">
     <div class="head"><h2 id="edit-h">The edit</h2><p>A few pieces to start with. Every one has its own page with real photos and details.</p></div>
@@ -393,9 +433,6 @@ def home():
     </div>
   </div>
 </section>
-{duo}
-{mixed}
-{ring}
 <section class="sec" aria-labelledby="types-h">
   <div class="wrap">
     <div class="head"><h2 id="types-h">Know your pearls</h2><p>Saltwater first, freshwater too. Learn what makes each pearl different, then see the pieces made with it.</p></div>
@@ -413,7 +450,7 @@ def home():
     <div class="btns"><a class="btn" href="/our-story">Our story</a></div>
   </div>
 </section>
-<section class="sec dark" aria-labelledby="trade-h">
+<section class="sec oat" aria-labelledby="trade-h">
   <div class="wrap trade">
     <div>
       <h2 id="trade-h">For retailers, creators and custom projects</h2>
@@ -422,7 +459,7 @@ def home():
         <li><b>Livestream partnerships</b><span>Product selection for creators and on-site livestream support.</span></li>
         <li><b>Custom &amp; bespoke</b><span>Pearls selected for you and designs made to your brief.</span></li>
       </ul>
-      <a class="btn on-dark" href="/wholesale">Work with us</a>
+      <a class="btn fill" href="/wholesale">Work with us</a>
     </div>
     <img src="/images/display.jpg" alt="Trays of pearl jewellery in the XIAI showroom" width="1200" height="675" loading="lazy">
   </div>
@@ -437,7 +474,7 @@ def home():
 </section>"""
     return (head("XIAI JEWELRY · Golden, Tahitian and South Sea Pearl Jewellery from Shanxiahu",
                  "Pearl jewellery from Shanxiahu, Zhuji: golden, white South Sea, Tahitian, Akoya and freshwater pearl necklaces, earrings, rings, bracelets and brooches. Enquiries welcome worldwide.",
-                 "/", og, ld) + header("home") + body + footer())
+                 "/", og, ld, preload=FILM["poster"] if FILM else "") + header("home") + body + footer())
 
 
 def listing(cat=None):
@@ -541,7 +578,7 @@ def product(p):
   </div>
 </div>
 {worn}
-<section class="sec tight" aria-labelledby="details-h" style="background:var(--rose)">
+<section class="sec tight oat" aria-labelledby="details-h">
   <div class="wrap">
     <div class="head" style="margin-bottom:40px"><h2 id="details-h">The details</h2></div>
     <ul class="points">
@@ -643,7 +680,7 @@ def story():
     </div>
   </div>
 </section>
-<section class="sec" style="background:var(--rose)" aria-labelledby="ms-h">
+<section class="sec oat" aria-labelledby="ms-h">
   <div class="wrap cols">
     <div><h2 id="ms-h" style="font-size:clamp(38px,4vw,58px)">Milestones</h2><p class="body-text" style="margin-top:16px">Two generations, from the first pearls brought to market to today&#39;s showroom and partnerships.</p></div>
     <ol class="timeline">{tl}</ol>
@@ -660,7 +697,7 @@ def story():
     </ol>
   </div>
 </section>
-<section class="sec" style="background:var(--lilac)" aria-labelledby="make-h">
+<section class="sec oat" aria-labelledby="make-h">
   <div class="wrap">
     <div class="head"><h2 id="make-h">From brief to finished jewellery</h2><p>Every new design follows the same five steps, so requirements are met and progress stays clear.</p></div>
     <ol class="steps five">
@@ -693,7 +730,7 @@ def story():
     </div>
   </div>
 </section>
-<section class="sec" style="background:var(--rose)" aria-labelledby="cred-h">
+<section class="sec oat" aria-labelledby="cred-h">
   <div class="wrap">
     <div class="head"><h2 id="cred-h">Industry membership &amp; business credit</h2></div>
     <div class="certs">
@@ -717,7 +754,7 @@ def wholesale():
     <img src="/images/studio.jpg" alt="XIAI photo and livestream studio" width="1200" height="675" fetchpriority="high">
   </div>
 </div>
-<section class="sec" style="background:var(--lilac)" aria-labelledby="ways-h">
+<section class="sec oat" aria-labelledby="ways-h">
   <div class="wrap">
     <div class="head"><h2 id="ways-h">Four ways to partner with XIAI</h2></div>
     <ul class="ways">
@@ -737,7 +774,7 @@ def wholesale():
     </div>
   </div>
 </section>
-<section class="sec" style="background:var(--rose)" aria-labelledby="teams-h">
+<section class="sec oat" aria-labelledby="teams-h">
   <div class="wrap cols">
     <div><h2 id="teams-h" style="font-size:clamp(38px,4vw,58px)">Five teams, one order</h2><p class="body-text" style="margin-top:16px">From choosing a piece to delivery, every request has a team that follows it through.</p>
       <img src="/images/packing.jpg" alt="Checking and packing orders in the warehouse" width="900" height="1125" loading="lazy" style="margin-top:36px;max-width:420px;width:100%"></div>
@@ -802,7 +839,7 @@ def contact():
     </div>
   </div>
 </div>
-<section class="sec" id="faq" style="background:var(--rose)" aria-labelledby="faq-h">
+<section class="sec oat" id="faq" aria-labelledby="faq-h">
   <div class="wrap">
     <div class="head" style="margin-bottom:40px"><h2 id="faq-h">Questions we are often asked</h2></div>
     <div class="faq">

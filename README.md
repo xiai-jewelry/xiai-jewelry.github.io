@@ -12,7 +12,9 @@
 - 页面结构和文案：`scripts/build_site.py`；样式：`assets/site.css`；交互：`assets/site.js`。
 - 改完运行 `python3 scripts/build_site.py`，会重新生成所有 HTML 和 `sitemap.xml`（不要手改生成出来的 HTML）。
 - 产品图：`images/products/<货号>/`（白底原图，最长边 1400px，已去掉带水印/海报字的图）。
-- 模特图：`images/campaign/`，是用 Canva AI 以真品图为参考生成的，页面上都标注了「AI-generated」；`build_site.py` 里的 `CAMPAIGN` 决定哪张图用在哪里，每张图必须对应一款真实货号。
+- 模特图：`images/campaign/`，是用 Canva AI 以真品图为参考生成的，页面上都标注了「AI-generated」；`build_site.py` 里的 `CAMPAIGN` 决定哪张图用在哪里，每张图必须对应一款真实货号。首页轮播（左右翻页）就是这几张图。
+- 首页视频：`media/xiai-film.mp4`（1280×720，电脑用）和 `media/xiai-film-540.mp4`（960×540，手机用），封面 `images/film-poster.jpg`。换视频时用 ffmpeg 压成 H.264 + AAC、加 `-movflags +faststart`，两个尺寸都换掉。
+- 配色（奶咖·米色）：页面底色 #F8F5F0，分区燕麦米 #EFE7DC，小面积奶咖 #E0D2C2，细线暖沙棕 #B89C83，按钮和链接浓咖棕 #6C5242，文字深咖墨 #332B26，辅助文字 #706258；都在 `assets/site.css` 开头的 `:root` 里。
 
 ## 部署
 - GitHub Pages：把整个目录同步到 `xiai-jewelry/xiai-jewelry.github.io` 仓库的 main 分支。旧仓库 `Sophia-ZHANG101.github.io` 只放跳转页，用 `python3 scripts/make_redirects.py <旧仓库目录>` 生成。
