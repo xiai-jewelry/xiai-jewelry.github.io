@@ -15,6 +15,15 @@
     var autoPaused = false;
     film.removeAttribute('controls');
     box.classList.add('js');
+    // The film fills the screen below the announcement bar and header.
+    var bar = doc.querySelector('.bar');
+    var siteHeader = doc.querySelector('.site-header');
+    var setChrome = function () {
+      var h = (bar ? bar.offsetHeight : 0) + (siteHeader ? siteHeader.offsetHeight : 0);
+      doc.documentElement.style.setProperty('--chrome', h + 'px');
+    };
+    setChrome();
+    window.addEventListener('resize', setChrome);
     var syncPlay = function () {
       playBtn.classList.toggle('is-paused', film.paused);
       playBtn.setAttribute('aria-label', film.paused ? 'Play the film' : 'Pause the film');

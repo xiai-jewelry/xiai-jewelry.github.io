@@ -107,9 +107,10 @@ CAT_HEAD_CAMPAIGN = {"Necklaces": "mixed", "Rings": "ring"}
 AI_NOTE = ("Model photographs on this site are AI-generated from photos of our real pieces. "
            "Product pages show the actual jewellery.")
 
-# Brand film from the client, shown at the top of the home page. `small` is a
-# lighter 960x540 copy that phones download instead of the 1280x720 file.
-FILM = dict(src="/media/xiai-film.mp4", small="/media/xiai-film-540.mp4", poster="/images/film-poster.jpg",
+# Brand film from the client, shown full screen at the top of the home page.
+# `portrait` is the centre of the same film cropped to 450x720, which phones
+# play instead of the 1280x720 file so the full-screen crop stays sharp.
+FILM = dict(src="/media/xiai-film.mp4", portrait="/media/xiai-film-portrait.mp4", poster="/images/film-poster.jpg",
             caption="XIAI JEWELRY on film: our showroom, the workshop and the runway.")
 FILM = FILM if (ROOT / FILM["src"].lstrip("/")).exists() else None
 
@@ -299,30 +300,29 @@ def write(rel, text):
 
 # ------------------------------------------------------------- pages ------
 def film_section():
-    """The brand film, first thing on the home page. It plays muted on a loop;
-    site.js swaps the native controls for pause and sound buttons, and does not
+    """The brand film, edge to edge and filling the first screen under the
+    header (as on tyrion.ai). It plays muted on a loop; site.js swaps the native
+    controls for pause and sound buttons, sizes it to the screen, and does not
     start it for visitors who ask for reduced motion."""
     if not FILM:
         return ""
     big = f'{FILM["src"]}?v={ver(FILM["src"].lstrip("/"))}'
     sources = f'<source src="{big}" type="video/mp4">'
-    if (ROOT / FILM["small"].lstrip("/")).exists():
-        small = f'{FILM["small"]}?v={ver(FILM["small"].lstrip("/"))}'
+    if (ROOT / FILM["portrait"].lstrip("/")).exists():
+        tall = f'{FILM["portrait"]}?v={ver(FILM["portrait"].lstrip("/"))}'
         # Browsers that ignore `media` take the first (full-size) file.
         sources = (f'<source src="{big}" type="video/mp4" media="(min-width: 701px)">\n'
-                   f'        <source src="{small}" type="video/mp4">')
+                   f'      <source src="{tall}" type="video/mp4">')
     return f"""<section class="film" aria-label="Brand film">
-  <div class="wrap">
-    <div class="film-box">
-      <video id="film" muted loop playsinline controls preload="metadata" poster="{FILM['poster']}" aria-label="XIAI JEWELRY brand film">
-        {sources}
-      </video>
-      <div class="film-ctrl">
-        <button class="film-play" type="button" aria-label="Pause the film">{ICON['pause']}{ICON['play']}</button>
-        <button class="film-sound" type="button" aria-label="Turn the sound on">{ICON['muted']}{ICON['sound']}</button>
-      </div>
+  <div class="film-box">
+    <video id="film" muted loop playsinline controls preload="metadata" poster="{FILM['poster']}" aria-label="XIAI JEWELRY brand film">
+      {sources}
+    </video>
+    <p class="film-cap">{e(FILM['caption'])}</p>
+    <div class="film-ctrl">
+      <button class="film-play" type="button" aria-label="Pause the film">{ICON['pause']}{ICON['play']}</button>
+      <button class="film-sound" type="button" aria-label="Turn the sound on">{ICON['muted']}{ICON['sound']}</button>
     </div>
-    <p class="wearing">{e(FILM['caption'])}</p>
   </div>
 </section>"""
 
