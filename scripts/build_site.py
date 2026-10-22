@@ -104,15 +104,50 @@ for v in CAMPAIGN.values():
     assert v["sku"] in BY_SKU, v
 WORN = {v["sku"]: v for v in CAMPAIGN.values()}
 CAT_HEAD_CAMPAIGN = {"Necklaces": "mixed", "Rings": "ring"}
-AI_NOTE = ("Model photographs on this site are AI-generated from photos of our real pieces. "
-           "Product pages show the actual jewellery.")
+AI_NOTE = ("Model photographs on this site are AI-generated, as are some campaign images. "
+           "Product pages show photos of the actual jewellery.")
 
-# Brand film from the client, shown full screen at the top of the home page.
-# `portrait` is the centre of the same film cropped to 450x720, which phones
-# play instead of the 1280x720 file so the full-screen crop stays sharp.
-FILM = dict(src="/media/xiai-film.mp4", portrait="/media/xiai-film-portrait.mp4", poster="/images/film-poster.jpg",
-            caption="XIAI JEWELRY on film: our showroom, the workshop and the runway.")
+# Home carousel, edge to edge, in the order the client chose: three still-life
+# images, then the brand film. `tone` is how the text reads over the picture on
+# wide screens ("light": dark text on a pale veil, "dark": white text on a dark
+# veil); `pos` keeps the text clear of the jewellery, and `narrow` keeps it in
+# the margin beside pieces that fill the middle. On phones the text sits under
+# the picture instead.
+SLIDES = [
+    dict(img="/images/home/slide-1-pearls-on-satin.jpg", tone="light", pos="right", slogan=True,
+         alt="Pearl strands, a pearl bracelet and a golden pearl ring on cream satin"),
+    dict(img="/images/home/slide-2-golden-earrings.jpg", tone="light", pos="right", narrow=True,
+         alt="Golden pearl earrings with pavé tops on travertine",
+         title="Golden pearls", text="From pale champagne and cream to deep gold.",
+         cta=("Discover", "golden pearls", "/pearl-guide#golden")),
+    dict(img="/images/home/slide-3-purple-earrings.jpg", tone="dark", pos="right", narrow=True,
+         alt="Purple pearl earrings under sparkling clusters, on dark marble",
+         title="Freshwater pearls", text="Grown in the lakes around Zhuji, in the widest range of shapes, sizes and colours.",
+         cta=("Discover", "freshwater pearls", "/pearl-guide#freshwater")),
+]
+SLIDES = [s for s in SLIDES if (ROOT / s["img"].lstrip("/")).exists()]
+
+# Brand film from the client: the last slide of the carousel. It only loads
+# when that slide opens.
+FILM = dict(src="/media/xiai-film.mp4", poster="/images/film-poster.jpg", title="Inside XIAI",
+            text="Our showroom, the workshop and the runway.", cta=("Our story", "/our-story"))
 FILM = FILM if (ROOT / FILM["src"].lstrip("/")).exists() else None
+
+# Try-on strip on the home page: the client's model photos first, then the
+# earlier campaign images (linked to their pieces) and a real showroom photo.
+TRY_ON = [
+    dict(img="/images/home/worn-black-dress.jpg", ai=True, cap="A strand of dark pearls with evening black.",
+         alt="Mirror selfie in a black V-neck dress with a strand of dark pearls"),
+    dict(img="/images/home/worn-grey-knit.jpg", ai=True, cap="Worn long over a grey knit.",
+         alt="Woman in a grey knit and wide trousers wearing a long necklace of dark pearls"),
+    dict(img="/images/home/worn-cluster-earrings.jpg", ai=True, cap="Grey pearl cluster earrings.",
+         alt="Close-up of grey pearl cluster earrings"),
+    dict(campaign="hero", alt="Model wearing XIAI cream-gold pearl drop earrings"),
+    dict(campaign="mixed", alt="Model in a white shirt wearing a necklace of mixed saltwater pearls"),
+    dict(campaign="ring", alt="Hand on a camel coat wearing a golden pearl ring"),
+    dict(img="/images/home/showroom-14157.jpg", ai=False, sku="14157", pos="50% 45%",
+         alt="Tahitian pearl necklace with gold beads on a display in the XIAI showroom"),
+]
 
 NUM = "zero one two three four five six seven eight nine ten eleven twelve".split()
 ICON = {
@@ -299,97 +334,121 @@ def write(rel, text):
 
 
 # ------------------------------------------------------------- pages ------
-def film_section():
-    """The brand film, edge to edge and filling the first screen under the
-    header (as on tyrion.ai). It plays muted on a loop; site.js swaps the native
-    controls for pause and sound buttons, sizes it to the screen, and does not
-    start it for visitors who ask for reduced motion."""
-    if not FILM:
-        return ""
-    big = f'{FILM["src"]}?v={ver(FILM["src"].lstrip("/"))}'
-    sources = f'<source src="{big}" type="video/mp4">'
-    if (ROOT / FILM["portrait"].lstrip("/")).exists():
-        tall = f'{FILM["portrait"]}?v={ver(FILM["portrait"].lstrip("/"))}'
-        # Browsers that ignore `media` take the first (full-size) file.
-        sources = (f'<source src="{big}" type="video/mp4" media="(min-width: 701px)">\n'
-                   f'      <source src="{tall}" type="video/mp4">')
-    return f"""<section class="film" aria-label="Brand film">
-  <div class="film-box">
-    <video id="film" muted loop playsinline controls preload="metadata" poster="{FILM['poster']}" aria-label="XIAI JEWELRY brand film">
-      {sources}
-    </video>
-    <p class="film-cap">{e(FILM['caption'])}</p>
-    <div class="film-ctrl">
-      <button class="film-play" type="button" aria-label="Pause the film">{ICON['pause']}{ICON['play']}</button>
-      <button class="film-sound" type="button" aria-label="Turn the sound on">{ICON['muted']}{ICON['sound']}</button>
-    </div>
-  </div>
-</section>"""
+SLOGAN = """<h1>Because it&rsquo;s XiAi, it&rsquo;s love at first&nbsp;sight.</h1>
+          <p class="sub">Golden, white and Tahitian pearls, chosen at the source in Shanxiahu and set in gold and silver.</p>
+          <div class="btns"><a class="btn fill" href="/products">Discover the collection</a></div>"""
 
 
 def hero_carousel():
-    """Home carousel of the campaign images, each linked to the real piece.
-    Without campaign images it falls back to text beside a product photo."""
-    slogan = """<h1>Because it&rsquo;s XiAi, it&rsquo;s love at first&nbsp;sight.</h1>
-          <p class="sub">Golden, white and Tahitian pearls, chosen at the source in Shanxiahu and set in gold and silver.</p>
-          <div class="btns"><a class="btn fill" href="/products">Discover the collection</a></div>"""
-    if "hero" not in CAMPAIGN:
+    """Edge-to-edge carousel at the top of the home page (as on
+    xueluopearl.com): the still-life slides, then the brand film. On wide
+    screens it fills the first screen under the header; site.js adds the
+    arrows' behaviour, autoplay, the text animation and the film controls."""
+    if not SLIDES:  # no images yet: the slogan beside a real product photo
         hp = BY_SKU["33168"]
         w, h = size(hp["photos"][0])
         return f"""<section class="hero" aria-label="Introduction">
   <div class="wrap"><div class="hero-split">
     <div class="hero-copy-alt">
-          {slogan}
+          {SLOGAN}
     </div>
     <a class="hero-product" href="/products/{hp['sku']}"><img src="{hp['photos'][0]}" alt="{e(hp['name'])}, item {hp['sku']}" width="{w}" height="{h}" fetchpriority="high"><span>{e(hp['name'])}, no. {hp['sku']}</span></a>
   </div></div>
 </section>"""
 
-    def img(key, alt):
-        w, h = size(CAMPAIGN[key]["src"])
-        return f'<img src="{CAMPAIGN[key]["src"]}" alt="{alt}" width="{w}" height="{h}">'
-
-    rings = len(CAT_BY_NAME["Rings"]["items"])
-    slides = [("s-wide", "hero", f"""{img('hero', 'Model wearing XIAI cream-gold pearl drop earrings')}
+    slides = []  # (classes, dot label, frame html)
+    for i, s in enumerate(SLIDES):
+        w, h = size(s["img"])
+        pri = ' fetchpriority="high"' if i == 0 else ' fetchpriority="low" decoding="async"'
+        if s.get("slogan"):
+            copy = SLOGAN
+        else:
+            label, more, href = s["cta"]  # short visible label; the rest is read out by screen readers
+            copy = (f'<h2>{e(s["title"])}</h2>\n          <p>{e(s["text"])}</p>\n'
+                    f'          <div class="btns"><a class="btn fill" href="{href}">{e(label)}<span class="vh"> {e(more)}</span></a></div>')
+        cls = f"t-{s['tone']} p-{s['pos']}" + (" c-narrow" if s.get("narrow") else "")
+        slides.append((cls, s.get("title", "The collection"), f"""<img src="{s['img']}" alt="{e(s['alt'])}" width="{w}" height="{h}"{pri}>
         <div class="slide-copy">
-          {slogan}
-        </div>""")]
-    if "mixed" in CAMPAIGN:
-        slides.append(("s-split", "mixed", f"""{img('mixed', 'Model in a white shirt wearing a necklace of mixed saltwater pearls')}
-        <div class="slide-copy">
-          <h2>Why choose one colour?</h2>
-          <p>Tahitian, golden, white South Sea and Akoya pearls in varied sizes on one fine 18K gold chain, in 43&nbsp;cm or 46&nbsp;cm.</p>
-          <div class="btns"><a class="btn fill" href="/products/14121">See the necklace</a></div>
+          {copy}
         </div>"""))
-    if "ring" in CAMPAIGN:
-        slides.append(("s-split", "ring", f"""{img('ring', 'Hand on a camel coat wearing a golden pearl ring')}
+    if FILM:
+        src = f'{FILM["src"]}?v={ver(FILM["src"].lstrip("/"))}'
+        label, href = FILM["cta"]
+        slides.append(("s-film t-dark p-left", FILM["title"], f"""<video id="film" muted loop playsinline controls preload="none" poster="{FILM['poster']}" aria-label="XIAI JEWELRY brand film">
+          <source src="{src}" type="video/mp4">
+        </video>
         <div class="slide-copy">
-          <h2>A golden pearl, close up</h2>
-          <p>A 12–13&nbsp;mm golden pearl inside a swirl of small stones. See all {NUM[rings] if rings < len(NUM) else rings} rings, from a three-pearl Akoya band to Tahitian statement pieces.</p>
-          <div class="btns"><a class="btn fill" href="/products/63034">See this ring</a><a class="btn" href="/products/rings">Shop rings</a></div>
+          <h2>{e(FILM['title'])}</h2>
+          <p>{e(FILM['text'])}</p>
+          <div class="btns"><a class="btn fill" href="{href}">{e(label)}</a></div>
+        </div>
+        <div class="film-ctrl">
+          <button class="film-play" type="button" aria-label="Play the film">{ICON['pause']}{ICON['play']}</button>
+          <button class="film-sound" type="button" aria-label="Turn the sound on">{ICON['muted']}{ICON['sound']}</button>
         </div>"""))
     n = len(slides)
     items = "\n".join(
-        f"""    <div class="slide {kind}" role="group" aria-roledescription="slide" aria-label="{i + 1} of {n}">
+        f"""    <div class="slide {cls}" role="group" aria-roledescription="slide" aria-label="{i + 1} of {n}">
       <div class="slide-frame">
         {inner}
       </div>
-      {wearing(key)}
-    </div>""" for i, (kind, key, inner) in enumerate(slides))
+    </div>""" for i, (cls, label, inner) in enumerate(slides))
     arrows = dots = ""
     if n > 1:  # arrows come first so keyboard users reach them before the slides
         arrows = f"""
     <button class="car-btn prev" type="button" aria-controls="hero-track" aria-label="Previous slide">{ICON['prev']}</button>
     <button class="car-btn next" type="button" aria-controls="hero-track" aria-label="Next slide">{ICON['next']}</button>"""
         dots = "\n    <div class=\"car-dots\">" + "".join(
-            f'<button type="button" aria-controls="hero-track" aria-label="Slide {i + 1}: {e(BY_SKU[CAMPAIGN[key]["sku"]]["name"])}"'
-            f'{" aria-current=\"true\"" if i == 0 else ""}></button>' for i, (kind, key, inner) in enumerate(slides)) + "</div>"
+            f'<button type="button" aria-controls="hero-track" aria-label="Slide {i + 1}: {e(label)}"'
+            f'{" aria-current=\"true\"" if i == 0 else ""}></button>' for i, (cls, label, inner) in enumerate(slides)) + "</div>"
     return f"""<section class="hero" aria-roledescription="carousel" aria-label="Highlights">
-  <div class="wrap"><div class="car" data-carousel>{arrows}
+  <div class="car" data-carousel>{arrows}
     <div class="car-track" id="hero-track">
 {items}
     </div>{dots}
-  </div></div>
+  </div>
+</section>"""
+
+
+def try_on():
+    """'As worn' strip: model photos and a showroom photo, swipeable, with
+    arrows on wide screens. Captions link to the piece when it is known."""
+    looks, any_ai = [], False
+    for t in TRY_ON:
+        if "campaign" in t:
+            if t["campaign"] not in CAMPAIGN:
+                continue
+            c = CAMPAIGN[t["campaign"]]
+            src, sku, ai, pos = c["src"], c["sku"], True, c.get("pos")
+            cap = None
+        else:
+            src, sku, ai, pos, cap = t["img"], t.get("sku"), t["ai"], t.get("pos"), t.get("cap")
+            if not (ROOT / src.lstrip("/")).exists():
+                continue
+        any_ai = any_ai or ai
+        w, h = size(src)
+        if sku:
+            p = BY_SKU[sku]
+            text = ("" if ai else "In our showroom: ") + f'<a href="/products/{sku}">{e(p["name"])}</a>, no. {sku}.'
+        else:
+            text = e(cap)
+        style = f' style="object-position:{pos}"' if pos else ""
+        looks.append(f'<figure class="look"><img src="{src}" alt="{e(t["alt"])}" width="{w}" height="{h}" loading="lazy"{style}>'
+                     f'<figcaption>{text}</figcaption></figure>')
+    if not looks:
+        return ""
+    note = '\n    <p class="note look-note">Model photographs are AI-generated.</p>' if any_ai else ""
+    return f"""<section class="sec" aria-labelledby="worn-h">
+  <div class="wrap">
+    <div class="head"><h2 id="worn-h">As worn</h2><p>Pearls for every day and every evening, from a little black dress to an easy grey knit.</p></div>
+    <div class="strip-box" data-strip>
+      <button class="strip-btn prev" type="button" aria-controls="worn-strip" aria-label="Previous photos">{ICON['prev']}</button>
+      <button class="strip-btn next" type="button" aria-controls="worn-strip" aria-label="More photos">{ICON['next']}</button>
+      <div class="strip" id="worn-strip" role="region" aria-label="Try-on photos" tabindex="0">
+        {"".join(looks)}
+      </div>
+    </div>{note}
+  </div>
 </section>"""
 
 
@@ -415,9 +474,8 @@ def home():
         "foundingDate": "2010",
         "memberOf": {"@type": "Organization", "name": "Zhejiang Pearl Industry Association"},
     }]
-    og = CAMPAIGN["hero"]["src"] if "hero" in CAMPAIGN else edit[0]["photos"][0]
-    body = f"""{film_section()}
-{hero_carousel()}
+    og = SLIDES[0]["img"] if SLIDES else CAMPAIGN["hero"]["src"] if "hero" in CAMPAIGN else edit[0]["photos"][0]
+    body = f"""{hero_carousel()}
 <section class="sec" aria-labelledby="edit-h">
   <div class="wrap">
     <div class="head"><h2 id="edit-h">The edit</h2><p>A few pieces to start with. Every one has its own page with real photos and details.</p></div>
@@ -425,6 +483,7 @@ def home():
     <div class="after"><a class="btn" href="/products">View all {len(products)} pieces</a></div>
   </div>
 </section>
+{try_on()}
 <section class="band" aria-labelledby="find-h">
   <div class="wrap">
     <div class="head"><h2 id="find-h">Find your pearl</h2><p>From everyday studs to statement rings and brooches.</p></div>
@@ -474,7 +533,7 @@ def home():
 </section>"""
     return (head("XIAI JEWELRY · Golden, Tahitian and South Sea Pearl Jewellery from Shanxiahu",
                  "Pearl jewellery from Shanxiahu, Zhuji: golden, white South Sea, Tahitian, Akoya and freshwater pearl necklaces, earrings, rings, bracelets and brooches. Enquiries welcome worldwide.",
-                 "/", og, ld, preload=FILM["poster"] if FILM else "") + header("home") + body + footer())
+                 "/", og, ld, preload=SLIDES[0]["img"] if SLIDES else "") + header("home") + body + footer())
 
 
 def listing(cat=None):

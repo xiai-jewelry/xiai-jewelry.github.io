@@ -12,8 +12,11 @@
 - 页面结构和文案：`scripts/build_site.py`；样式：`assets/site.css`；交互：`assets/site.js`。
 - 改完运行 `python3 scripts/build_site.py`，会重新生成所有 HTML 和 `sitemap.xml`（不要手改生成出来的 HTML）。
 - 产品图：`images/products/<货号>/`（白底原图，最长边 1400px，已去掉带水印/海报字的图）。
-- 模特图：`images/campaign/`，是用 Canva AI 以真品图为参考生成的，页面上都标注了「AI-generated」；`build_site.py` 里的 `CAMPAIGN` 决定哪张图用在哪里，每张图必须对应一款真实货号。首页轮播（左右翻页）就是这几张图。
-- 首页视频：无边框铺满首屏（导航栏下方）。`media/xiai-film.mp4`（1280×720，电脑用）和 `media/xiai-film-portrait.mp4`（从同一视频中间裁出的 450×720 竖版，手机用），封面 `images/film-poster.jpg`。换视频时用 ffmpeg 压成 H.264 + AAC、加 `-movflags +faststart`，两个版本都换掉（竖版用 `crop=450:720:(in_w-450)/2:0`）。
+- 首页轮播（左右无边框，参考雪洛 xueluopearl.com）：`images/home/slide-1…3`，顺序和文案在 `build_site.py` 的 `SLIDES` 里，第 4 页是视频（`FILM`）。电脑上铺满首屏、自动翻页（6 秒一张，翻到视频停下；访客一点击就不再自动翻），手机上是方图，文字在图下面。
+- 首页「As worn」人物试戴：`images/home/worn-*.jpg` 和展厅照片 `showroom-14157.jpg`，顺序和说明在 `TRY_ON` 里；后面接着原来的三张模特图。
+- 模特图：`images/campaign/`，是用 Canva AI 以真品图为参考生成的；`build_site.py` 里的 `CAMPAIGN` 决定哪张图用在哪里，每张图必须对应一款真实货号。
+- 页面往下滑时的文字/图片上浮效果在 `assets/site.js` 末尾（`Scroll-in effects`），系统设置了「减少动态效果」的访客不会看到动画。
+- 首页视频：轮播第 4 页，`media/xiai-film.mp4`（1280×720，H.264 + AAC，`-movflags +faststart`），封面 `images/film-poster.jpg`；翻到这一页才开始加载和播放。
 - 配色（奶咖·米色）：页面底色 #F8F5F0，分区燕麦米 #EFE7DC，小面积奶咖 #E0D2C2，细线暖沙棕 #B89C83，按钮和链接浓咖棕 #6C5242，文字深咖墨 #332B26，辅助文字 #706258；都在 `assets/site.css` 开头的 `:root` 里。
 
 ## 部署
