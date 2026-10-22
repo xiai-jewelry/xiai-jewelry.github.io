@@ -98,15 +98,8 @@
       timer = setTimeout(function () { show(current + 1); }, 6000);
     };
     var takeOver = function () { auto = false; clearTimeout(timer); };
-    var ticking = false;
-    track.addEventListener('scroll', function () {
-      if (ticking) { return; }
-      ticking = true;
-      requestAnimationFrame(function () {
-        ticking = false;
-        activate(Math.round(track.scrollLeft / Math.max(track.clientWidth, 1)));
-      });
-    }, { passive: true });
+    var index = function () { return Math.round(track.scrollLeft / Math.max(track.clientWidth, 1)); };
+    track.addEventListener('scroll', function () { activate(index()); }, { passive: true });
     ['pointerdown', 'touchstart', 'keydown', 'focusin'].forEach(function (ev) {
       car.addEventListener(ev, takeOver, { passive: true });
     });
@@ -130,10 +123,8 @@
       if (e.key === 'ArrowLeft') { e.preventDefault(); show(current - 1); }
       if (e.key === 'ArrowRight') { e.preventDefault(); show(current + 1); }
     });
-    // Let the first slide's text rise in once the page has painted.
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () { activate(Math.round(track.scrollLeft / Math.max(track.clientWidth, 1))); });
-    });
+    // Let the first slide's text rise in just after the page first paints.
+    setTimeout(function () { activate(index()); }, 80);
   });
 
   // "As worn" strip: arrows page through the photos on wide screens.
